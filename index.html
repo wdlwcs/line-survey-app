@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0,
+                 maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#06C755" />
+  <title>測試 Line App</title>
+
+  <!-- LINE LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet" />
+
+  <style>
+    /* ══════════════════════════════════════════
+       （保留您原本所有 CSS，此處省略重複內容）
+       新增：表單相關樣式
+    ══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --line-green : #06C755;
+      --line-dark  : #00B900;
+      --nav-height : 68px;
+      --nav-bg     : #ffffff;
+      --active-color: #06C755;
+      --text-muted : #999;
+      --card-radius: 14px;
+      --shadow-sm  : 0 2px 8px rgba(0,0,0,.08);
+      --shadow-md  : 0 4px 20px rgba(0,0,0,.12);
+      --transition : .25s cubic-bezier(.4,0,.2,1);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Noto Sans TC', sans-serif;
+      background: #f4f6f9;
+      overflow: hidden;
+    }
+
+    /* ── 頂部標題列 ── */
+    .app-header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 56px;
+      background: linear-gradient(135deg, #06C755 0%, #00A846 100%);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(6,199,85,.35);
+    }
+    .app-header h1 { color:#fff; font-size:1.1rem; font-weight:700; letter-spacing:.05em; }
+    .app-header .user-avatar {
+      position: absolute; right: 16px;
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.7);
+      background: rgba(255,255,255,.3);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: .8rem; overflow: hidden;
+    }
+
+    /* ── 主內容區 ── */
+    .content-area {
+      position: fixed; top: 56px; left: 0; right: 0;
+      bottom: var(--nav-height);
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      background: #f4f6f9;
+    }
+
+    /* ── 歡迎首頁 ── */
+    .welcome-panel {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; padding: 40px 24px; text-align: center;
+    }
+    .logo-circle {
+      width: 96px; height: 96px; border-radius: 50%;
+      background: linear-gradient(135deg, #06C755, #00A846);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 24px; box-shadow: 0 8px 28px rgba(6,199,85,.4);
+    }
+    .logo-circle i { font-size: 2.6rem; color: #fff; }
+    .welcome-panel h2 { font-size:1.4rem; color:#222; margin-bottom:12px; font-weight:700; }
+    .welcome-panel p  { color:#666; font-size:.92rem; line-height:1.8; max-width:280px; }
+    .hint-arrow {
+      margin-top: 36px; display: flex; flex-direction: column;
+      align-items: center; gap: 6px; color: #aaa; font-size: .8rem;
+      animation: bounceDown 1.6s ease-in-out infinite;
+    }
+    .hint-arrow i { font-size: 1.4rem; color: var(--line-green); }
+    @keyframes bounceDown {
+      0%,100% { transform: translateY(0);   opacity: .7; }
+      50%      { transform: translateY(8px); opacity: 1;  }
+    }
+
+    /* ── ★ 新增：內嵌問卷面板 ── */
+    .survey-panel {
+      display: none;          /* 預設隱藏，點選「填寫問卷」按鈕後顯示 */
+      flex-direction: column;
+      padding: 24px 20px;
+      gap: 16px;
+      min-height: 100%;
+    }
+    .survey-panel.visible { display: flex; }
+
+    .survey-panel h2 {
+      font-size: 1.2rem; font-weight: 700; color: #222;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* 用戶資訊卡片（顯示已抓到的 LINE 身份） */
+    .user-info-card {
+      background: #fff; border-radius: var(--card-radius);
+      padding: 14px 16px; box-shadow: var(--shadow-sm);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .user-info-card img,
+    .user-info-card .avatar-placeholder {
+      width: 44px; height: 44px; border-radius: 50%; object-fit: cover;
+      background: var(--line-green);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 1.1rem; flex-shrink: 0;
+    }
+    .user-info-card .info { flex: 1; }
+    .user-info-card .info .name  { font-weight: 700; color: #222; font-size: .95rem; }
+    .user-info-card .info .uid   { font-size: .72rem; color: #999; word-break: break-all; }
+    .user-info-card .badge {
+      background: #e6f9ee; color: var(--line-green);
+      font-size: .7rem; font-weight: 700; padding: 3px 8px;
+      border-radius: 20px; white-space: nowrap;
+    }
+
+    /* 表單欄位 */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: .85rem; font-weight: 600; color: #444; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      border: 1.5px solid #e0e0e0; border-radius: 10px;
+      padding: 11px 14px; font-size: .9rem; font-family: inherit;
+      background: #fff; outline: none; transition: border-color .2s;
+      color: #222;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { border-color: var(--line-green); }
+    .form-group textarea { resize: vertical; min-height: 90px; }
+
+    /* 送出按鈕 */
+    .btn-submit {
+      background: linear-gradient(135deg, #06C755, #00A846);
+      color: #fff; border: none; border-radius: 12px;
+      padding: 14px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; width: 100%; margin-top: 4px;
+      box-shadow: 0 4px 14px rgba(6,199,85,.4);
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-submit:active { opacity: .85; transform: scale(.98); }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── 底部導覽列 ── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: var(--nav-height); background: var(--nav-bg);
+      display: flex; align-items: stretch;
+      border-top: 1px solid #e8e8e8;
+      box-shadow: 0 -4px 16px rgba(0,0,0,.07); z-index: 200;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px;
+      background: transparent; border: none; cursor: pointer;
+      padding: 8px 4px; position: relative;
+      -webkit-tap-highlight-color: transparent;
+      transition: background var(--transition);
+    }
+    .nav-btn::before {
+      content: ''; position: absolute; inset: 6px 8px;
+      border-radius: 12px; background: transparent;
+      transition: background var(--transition);
+    }
+    .nav-btn:active::before { background: rgba(6,199,85,.12); }
+    .nav-btn .nav-icon {
+      font-size: 1.3rem; color: var(--text-muted);
+      transition: color var(--transition), transform var(--transition);
+      position: relative; z-index: 1;
+    }
+    .nav-btn .nav-label {
+      font-size: .68rem; color: var(--text-muted); font-weight: 500;
+      transition: color var(--transition); position: relative; z-index: 1;
+      letter-spacing: .02em;
+    }
+    .nav-btn.active .nav-icon  { color: var(--active-color); transform: translateY(-2px); }
+    .nav-btn.active .nav-label { color: var(--active-color); font-weight: 700; }
+    .nav-btn.active::after {
+      content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+      height: 3px; background: var(--active-color);
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: calc(var(--nav-height) + 16px); left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,.75); color: #fff;
+      padding: 10px 20px; border-radius: 24px; font-size: .85rem;
+      white-space: nowrap; opacity: 0;
+      transition: opacity .3s, transform .3s; z-index: 999; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── 載入畫面 ── */
+    #loading-screen {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #06C755 0%, #00A846 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      z-index: 9999; transition: opacity .5s;
+    }
+    #loading-screen.hide { opacity: 0; pointer-events: none; }
+    #loading-screen .ld-icon {
+      width: 72px; height: 72px; background: rgba(255,255,255,.2);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    }
+    #loading-screen .ld-icon i { font-size: 2rem; color: #fff; }
+    #loading-screen p { color: rgba(255,255,255,.9); font-size: .95rem; }
+    #loading-screen .ld-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (min-width: 480px) {
+      .app-header, .content-area, .bottom-nav {
+        max-width: 480px; left: 50%;
+        transform: translateX(-50%); right: auto; width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── 載入畫面 ── -->
+  <div id="loading-screen">
+    <div class="ld-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+    <p>測試 Line App 載入中…</p>
+    <div class="ld-spinner"></div>
+  </div>
+
+  <!-- ── 頂部標題列 ── -->
+  <header class="app-header">
+    <h1><i class="fa-solid fa-leaf" style="margin-right:6px;"></i>測試 Line App</h1>
+    <div class="user-avatar" id="userAvatar">
+      <i class="fa-solid fa-user"></i>
+    </div>
+  </header>
+
+  <!-- ── 主內容區 ── -->
+  <main class="content-area" id="contentArea">
+
+    <!-- 歡迎首頁 -->
+    <div class="welcome-panel" id="panel-home">
+      <div class="logo-circle">
+        <i class="fa-solid fa-heart-pulse"></i>
+      </div>
+      <h2>歡迎使用 測試 Line App</h2>
+      <p>請點選下方按鈕，<br>查閱宣導文件、填寫問卷、<br>外部表單或瀏覽相簿。</p>
+      <div class="hint-arrow">
+        <span>點選下方功能按鈕開始使用</span>
+        <i class="fa-solid fa-angles-down"></i>
+      </div>
+    </div>
+
+    <!-- ★ 新增：內嵌問卷面板（含 LINE 身份識別） -->
+    <div class="survey-panel" id="panel-survey">
+
+      <h2><i class="fa-solid fa-clipboard-list" style="color:var(--line-green)"></i>填寫問卷</h2>
+
+      <!-- 已抓取的 LINE 用戶資訊卡片 -->
+      <div class="user-info-card" id="userInfoCard">
+        <!-- 由 JS 動態填入 -->
+        <div class="avatar-placeholder" id="cardAvatar">?</div>
+        <div class="info">
+          <div class="name" id="cardName">識別中…</div>
+          <div class="uid"  id="cardUid">取得 LINE 身份中</div>
+        </div>
+        <div class="badge" id="cardBadge">未登入</div>
+      </div>
+
+      <!-- 表單 -->
+      <form id="surveyForm" onsubmit="submitSurvey(event)">
+
+        <!-- ★ 隱藏欄位：儲存 LINE 身份（由 JS 自動填入，使用者不可見） -->
+        <input type="hidden" id="f_lineUserId"   name="lineUserId">
+        <input type="hidden" id="f_displayName"  name="displayName">
+        <input type="hidden" id="f_pictureUrl"   name="pictureUrl">
+
+        <!-- 問卷題目 1 -->
+        <div class="form-group">
+          <label for="f_answer1">
+            <i class="fa-solid fa-circle-question" style="color:var(--line-green)"></i>
+            問題一：您對本次活動的滿意度？
+          </label>
+          <select id="f_answer1" name="answer1" required>
+            <option value="">── 請選擇 ──</option>
+            <option value="非常滿意">⭐⭐⭐⭐⭐ 非常滿意</option>
+            <option value="滿意">⭐⭐⭐⭐ 滿意</option>
+            <option value="普通">⭐⭐⭐ 普通</option>
+            <option value="不滿意">⭐⭐ 不滿意</option>
+            <option value="非常不滿意">⭐ 非常不滿意</option>
+          </select>
+        </div>
+
+        <!-- 問卷題目 2 -->
+        <div class="form-group">
+          <label for="f_answer2">
+            <i class="fa-solid fa-pen-to-square" style="color:var(--line-green)"></i>
+            問題二：您有什麼建議或意見？
+          </label>
+          <textarea id="f_answer2" name="answer2"
+                    placeholder="請輸入您的意見…（選填）"></textarea>
+        </div>
+
+        <button type="submit" class="btn-submit" id="btnSubmit">
+          <i class="fa-solid fa-paper-plane"></i>&nbsp; 送出問卷
+        </button>
+
+      </form>
+    </div><!-- /panel-survey -->
+
+  </main>
+
+  <!-- ── 底部導覽列 ── -->
+  <nav class="bottom-nav" role="navigation" aria-label="主選單">
+
+    <button class="nav-btn" id="nav-health"
+            onclick="openURL('health')" aria-label="宣導文件">
+      <i class="fa-solid fa-file-medical nav-icon"></i>
+      <span class="nav-label">宣導文件</span>
+    </button>
+
+    <!-- ★ 修改：填寫問卷改為顯示內嵌面板，不跳外部連結 -->
+    <button class="nav-btn" id="nav-survey"
+            onclick="showPanel('survey')" aria-label="填寫問卷">
+      <i class="fa-solid fa-clipboard-list nav-icon"></i>
+      <span class="nav-label">填寫問卷</span>
+    </button>
+
+    <button class="nav-btn" id="nav-data"
+            onclick="openURL('data')" aria-label="外部表單">
+      <i class="fa-solid fa-database nav-icon"></i>
+      <span class="nav-label">外部表單</span>
+    </button>
+
+    <button class="nav-btn" id="nav-album"
+            onclick="openURL('album')" aria-label="瀏覽相簿">
+      <i class="fa-solid fa-images nav-icon"></i>
+      <span class="nav-label">瀏覽相簿</span>
+    </button>
+
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ============================================================
+       JAVASCRIPT
+  ============================================================ -->
+  <script>
+    /* ===========================================================
+       ① 設定區
+    =========================================================== */
+    const CONFIG = {
+      liffId : '2009597942-W6pE80kD',   // ← 您的 LIFF ID
+
+      // ★ GAS Web App 本身的部署網址（doPost 的接收端）
+      //   部署後從 GAS「部署 > 管理部署」複製
+      gasUrl : 'https://script.google.com/macros/s/AKfycbxR4rHl5Exy7UaLQ-g1T8-ws7VeVRGJojfRKX-uCRL03fSIwyM8CKflIxdSkgPqtDRVeg/exec',
+
+      urls: {
+        health : 'https://drive.google.com/file/d/File_ID/view?usp=sharing',
+        // survey 已改為內嵌面板，此欄保留備用
+        survey : '',
+        data   : 'Website URL',
+        album  : 'https://photos.google.com/album/Album_ID'
+      }
+    };
+
+    /* ===========================================================
+       ② 全域：儲存已取得的 LINE 用戶資料
+    =========================================================== */
+    let lineProfile = null;   // { userId, displayName, pictureUrl, statusMessage }
+
+    /* ===========================================================
+       ③ 面板切換：home / survey
+    =========================================================== */
+    function showPanel(name) {
+      // 隱藏所有面板
+      document.getElementById('panel-home').style.display   = 'none';
+      document.getElementById('panel-survey').classList.remove('visible');
+
+      if (name === 'home') {
+        document.getElementById('panel-home').style.display = 'flex';
+      } else if (name === 'survey') {
+        document.getElementById('panel-survey').classList.add('visible');
+        updateSurveyUserCard();   // 更新用戶資訊卡片
+      }
+
+      // 導覽列 active 狀態
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('nav-' + name);
+      if (btn) btn.classList.add('active');
+
+      // 捲回頂部
+      document.getElementById('contentArea').scrollTop = 0;
+    }
+
+    /* ===========================================================
+       ④ 更新問卷頁的用戶資訊卡片
+          同時將 LINE userId 填入隱藏欄位
+    =========================================================== */
+    function updateSurveyUserCard() {
+      if (!lineProfile) return;
+
+      const { userId, displayName, pictureUrl } = lineProfile;
+
+      // 填入隱藏欄位 ← 這是抓取 LINE 身份的核心
+      document.getElementById('f_lineUserId')  .value = userId;
+      document.getElementById('f_displayName') .value = displayName;
+      document.getElementById('f_pictureUrl')  .value = pictureUrl || '';
+
+      // 更新卡片顯示
+      document.getElementById('cardName').textContent  = displayName;
+      document.getElementById('cardUid').textContent   = 'UID: ' + userId;
+      document.getElementById('cardBadge').textContent = '✅ 已識別';
+      document.getElementById('cardBadge').style.background = '#e6f9ee';
+
+      // 頭像
+      const avatarEl = document.getElementById('cardAvatar');
+      if (pictureUrl) {
+        avatarEl.outerHTML =
+          `<img id="cardAvatar" src="${pictureUrl}"
+                alt="${displayName}"
+                style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;">`;
+      } else {
+        avatarEl.textContent = displayName.charAt(0).toUpperCase();
+      }
+    }
+
+    /* ===========================================================
+       ⑤ 送出問卷：fetch() POST 到 GAS doPost
+    =========================================================== */
+    async function submitSurvey(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById('btnSubmit');
+      btn.disabled    = true;
+      btn.textContent = '⏳ 送出中…';
+
+      // 收集表單資料
+      const payload = {
+        lineUserId  : document.getElementById('f_lineUserId').value,
+        displayName : document.getElementById('f_displayName').value,
+        pictureUrl  : document.getElementById('f_pictureUrl').value,
+        answer1     : document.getElementById('f_answer1').value,
+        answer2     : document.getElementById('f_answer2').value
+      };
+
+      // 驗證：必須有 LINE 身份才能送出
+      if (!payload.lineUserId) {
+        showToast('⚠️ 無法取得 LINE 身份，請確認已登入 LINE');
+        btn.disabled    = false;
+        btn.innerHTML   = '<i class="fa-solid fa-paper-plane"></i>&nbsp; 送出問卷';
+        return;
+      }
+
+      try {
+        /*
+         * ★ 重要：GAS doPost 需要使用 no-cors 模式
+         *   或改用 redirect: 'follow' 處理 302 重新導向
+         *   這裡使用標準 fetch，GAS 會回傳 JSON
+         */
+        const res = await fetch(CONFIG.gasUrl, {
+          method      : 'POST',
+          redirect    : 'follow',           // 跟隨 GAS 的 302 重新導向
+          headers     : { 'Content-Type': 'text/plain;charset=utf-8' },
+          body        : JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+
+        if (result.status === 'ok') {
+          showToast('✅ 問卷已成功送出！感謝您的填寫');
+          document.getElementById('surveyForm').reset();
+          // 2 秒後返回首頁
+          setTimeout(() => showPanel('home'), 2000);
+        } else {
+          throw new Error(result.message || '伺服器回傳錯誤');
+        }
+
+      } catch (err) {
+        console.error('[送出問卷]', err);
+        showToast('❌ 送出失敗：' + err.message);
+      } finally {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>&nbsp; 送出問卷';
+      }
+    }
+
+    /* ===========================================================
+       ⑥ 開啟外部連結（保留原有邏輯）
+    =========================================================== */
+    function openURL(key) {
+      const url = CONFIG.urls[key];
+      if (!url || url.includes('_ID') || url === 'Website URL') {
+        showToast('⚠️ 此功能連結尚未設定');
+        return;
+      }
+      setNavActive(key);
+      if (window.liff && liff.isInClient()) {
+        liff.openWindow({ url, external: true });
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }
+
+    /* ===========================================================
+       ⑦ 導覽列 active 視覺回饋
+    =========================================================== */
+    function setNavActive(key) {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('nav-' + key);
+      if (btn) {
+        btn.classList.add('active');
+        setTimeout(() => btn.classList.remove('active'), 1200);
+      }
+    }
+
+    /* ===========================================================
+       ⑧ Toast 通知
+    =========================================================== */
+    function showToast(msg, duration = 2800) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    /* ===========================================================
+       ⑨ LIFF 初始化 ← 核心：取得 LINE 用戶身份
+    =========================================================== */
+    async function initLiff() {
+      if (!CONFIG.liffId || CONFIG.liffId === 'YOUR_LIFF_ID') {
+        console.warn('[LIFF] LIFF ID 未設定');
+        hideLoadingScreen();
+        return;
+      }
+
+      try {
+        await liff.init({ liffId: CONFIG.liffId });
+        console.log('[LIFF] 初始化成功，isInClient:', liff.isInClient());
+
+        // 若未登入則導向 LINE 登入頁
+        if (!liff.isLoggedIn()) {
+          // 在 LINE App 外部測試時才需要手動 login()
+          // 在 LINE App 內部會自動登入
+          if (!liff.isInClient()) {
+            liff.login({ redirectUri: location.href });
+            return;   // login() 會重新導向，後續程式不執行
+          }
+        }
+
+        // ★ 取得 LINE 用戶資料（這就是「抓取 LINE 身份」的關鍵）
+        lineProfile = await liff.getProfile();
+        console.log('[LIFF] 用戶資料：', lineProfile);
+        /*
+          lineProfile 結構：
+          {
+            userId      : "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",  // LINE User ID（唯一識別）
+            displayName : "王小明",
+            pictureUrl  : "https://profile.line-scdn.net/...",
+            statusMessage: "..."
+          }
+        */
+
+        // 更新頂部頭像
+        updateUserAvatar(lineProfile);
+        showToast('👋 歡迎，' + lineProfile.displayName + '！');
+
+      } catch (err) {
+        console.error('[LIFF] 初始化失敗：', err);
+        showToast('⚠️ LINE 身份取得失敗，部分功能受限');
+      } finally {
+        hideLoadingScreen();
+      }
+    }
+
+    /* ===========================================================
+       ⑩ 更新頂部頭像
+    =========================================================== */
+    function updateUserAvatar(profile) {
+      const avatarEl = document.getElementById('userAvatar');
+      if (profile.pictureUrl) {
+        avatarEl.innerHTML =
+          `<img src="${profile.pictureUrl}" alt="${profile.displayName}"
+                style="width:100%;height:100%;object-fit:cover;">`;
+      } else {
+        avatarEl.textContent = profile.displayName.charAt(0).toUpperCase();
+        avatarEl.style.cssText += 'font-size:1rem;font-weight:700;';
+      }
+    }
+
+    /* ===========================================================
+       ⑪ 隱藏載入畫面
+    =========================================================== */
+    function hideLoadingScreen() {
+      const screen = document.getElementById('loading-screen');
+      screen.classList.add('hide');
+      setTimeout(() => screen.remove(), 500);
+    }
+
+    /* ===========================================================
+       ⑫ 頁面啟動
+    =========================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      initLiff();
+    });
+  </script>
+
+</body>
+</html>
